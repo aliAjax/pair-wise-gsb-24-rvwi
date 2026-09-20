@@ -1,0 +1,95 @@
+import type { AppState } from "./types";
+
+// 初始档案：覆盖正常发掘、跨层补记、遗迹停挖、保护复挖、验收更正等场景
+export const STORAGE_KEY = "hxwl-10-excavation-ledger-v1";
+
+export const seedState: AppState = {
+  version: 1,
+  crews: [
+    { id: "c1", name: "一班", leader: "张工" },
+    { id: "c2", name: "二班", leader: "李工" },
+    { id: "c3", name: "三班", leader: "王工" },
+  ],
+  trenches: [
+    { id: "T0203", status: "digging", currentCrewId: "c1" },
+    { id: "T0204", status: "halted", currentCrewId: "c2" },
+    { id: "T0301", status: "digging", currentCrewId: "c3" },
+  ],
+  strata: [
+    { id: "s-0203-1", trenchId: "T0203", code: "第1层", topDepth: 0, bottomDepth: 30, soil: "耕土，灰黄色", accepted: true },
+    { id: "s-0203-2", trenchId: "T0203", code: "第2层", topDepth: 30, bottomDepth: 75, soil: "灰褐土（原录：浅灰土）", accepted: true },
+    { id: "s-0203-3", trenchId: "T0203", code: "第3层", topDepth: 75, bottomDepth: 140, soil: "灰褐土，夹陶片", accepted: false },
+    { id: "s-0204-1", trenchId: "T0204", code: "第1层", topDepth: 0, bottomDepth: 35, soil: "灰黄耕土", accepted: true },
+    { id: "s-0204-2", trenchId: "T0204", code: "第2层", topDepth: 35, bottomDepth: 95, soil: "黑褐土，夹炭屑", accepted: false },
+    { id: "s-0301-1", trenchId: "T0301", code: "第1层", topDepth: 0, bottomDepth: 28, soil: "灰黄土", accepted: true },
+    { id: "s-0301-2", trenchId: "T0301", code: "第2层", topDepth: 28, bottomDepth: 70, soil: "夯土面残段", accepted: true },
+    { id: "s-0301-3", trenchId: "T0301", code: "第3层", topDepth: 70, bottomDepth: 120, soil: "黄褐垫土", accepted: false },
+  ],
+  reports: [
+    { id: "r1", date: "2026-09-15", trenchId: "T0203", stratumId: "s-0203-1", startDepth: 0, advance: 30, endDepth: 30, crossedStrata: "", supervisor: "张工", crewId: "c1", createdAt: 1 },
+    { id: "r2", date: "2026-09-16", trenchId: "T0203", stratumId: "s-0203-2", startDepth: 30, advance: 45, endDepth: 75, crossedStrata: "", supervisor: "张工", crewId: "c1", createdAt: 2 },
+    { id: "r3", date: "2026-09-17", trenchId: "T0203", stratumId: "s-0203-3", startDepth: 75, advance: 25, endDepth: 100, crossedStrata: "", supervisor: "张工", crewId: "c1", createdAt: 3 },
+    { id: "r4", date: "2026-09-17", trenchId: "T0204", stratumId: "s-0204-1", startDepth: 0, advance: 35, endDepth: 35, crossedStrata: "", supervisor: "李工", crewId: "c2", createdAt: 4 },
+    { id: "r5", date: "2026-09-18", trenchId: "T0204", stratumId: "s-0204-2", startDepth: 35, advance: 30, endDepth: 65, crossedStrata: "", supervisor: "李工", crewId: "c2", createdAt: 5 },
+    { id: "r6", date: "2026-09-16", trenchId: "T0301", stratumId: "s-0301-1", startDepth: 0, advance: 28, endDepth: 28, crossedStrata: "", supervisor: "王工", crewId: "c3", createdAt: 6 },
+    { id: "r7", date: "2026-09-17", trenchId: "T0301", stratumId: "s-0301-2", startDepth: 28, advance: 42, endDepth: 70, crossedStrata: "", supervisor: "王工", crewId: "c3", createdAt: 7 },
+    { id: "r8", date: "2026-09-18", trenchId: "T0301", stratumId: "s-0301-3", startDepth: 70, advance: 20, endDepth: 90, crossedStrata: "", supervisor: "王工", crewId: "c3", createdAt: 8 },
+  ],
+  features: [
+    {
+      id: "f1",
+      code: "H12",
+      kind: "灰坑",
+      trenchId: "T0204",
+      depth: 62,
+      description: "黑褐土夹炭屑，见动物骨，坑口范围待揭",
+      discoveredInReportId: "r5",
+      crewId: "c2",
+      date: "2026-09-18",
+      protectionRegistered: false,
+      protectionNote: "",
+      protectedAt: null,
+      resumedAt: null,
+    },
+    {
+      id: "f2",
+      code: "F2",
+      kind: "房址",
+      trenchId: "T0301",
+      depth: 55,
+      description: "夯土面与柱洞关系，已套箱遮盖并回填30cm保护层",
+      discoveredInReportId: "r7",
+      crewId: "c3",
+      date: "2026-09-17",
+      protectionRegistered: true,
+      protectionNote: "套箱遮盖＋30cm黄土回填保护层，柱洞编号待补测",
+      protectedAt: "2026-09-18",
+      resumedAt: "2026-09-19",
+    },
+  ],
+  handovers: [
+    {
+      id: "h1",
+      trenchId: "T0301",
+      date: "2026-09-19",
+      fromCrewId: "c3",
+      toCrewId: "c1",
+      pendingCoordinates: "柱洞 D4、D5 未测；房址东南角边界点未取",
+      artifactStaging: "T0301 东隔梁临时木箱 A-03（陶片 6、兽骨 2 袋）",
+      note: "F2 保护回填已验收，复挖自 90cm 起",
+      createdAt: 9,
+    },
+  ],
+  corrections: [
+    {
+      id: "x1",
+      date: "2026-09-19",
+      stratumId: "s-0203-2",
+      field: "soil",
+      oldValue: "浅灰土",
+      newValue: "灰褐土",
+      reason: "复核土色卡，原记录光线不足判色偏浅",
+      createdAt: 10,
+    },
+  ],
+};

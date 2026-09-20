@@ -1,86 +1,78 @@
+import { useEffect, useMemo, useState } from "react";
 import "./styles.css";
+import type { AppState } from "./domain/types";
+import { loadState, resetState, saveState } from "./domain/storage";
+import { integrityChecks, type Result } from "./domain/rules";
+import { TrenchBoard } from "./components/TrenchBoard";
+import { Forms } from "./components/Forms";
+import { Ledger } from "./components/Ledger";
 
 const project = {
-  "id": "hxwl-10",
-  "port": 5110,
-  "title": "考古探方记录",
-  "subtitle": "遗址探方、地层关系与出土物坐标档案",
-  "stack": "React + Vite + TypeScript + CSS",
-  "theme": [
-    "#854d0e",
-    "#047857",
-    "#475569"
-  ],
-  "domain": "考古发掘",
-  "users": [
-    "发掘队员",
-    "领队",
-    "资料整理员"
-  ],
-  "metrics": [
-    "探方数",
-    "地层数",
-    "出土物",
-    "未整理记录"
-  ],
-  "filters": [
-    "灰坑",
-    "墓葬",
-    "房址",
-    "沟状遗迹"
-  ],
-  "fields": [
-    "遗址",
-    "探方",
-    "地层",
-    "遗迹单位",
-    "深度",
-    "土色",
-    "坐标点",
-    "出土物"
-  ],
-  "records": [
-    [
-      "T0203",
-      "第3层",
-      "灰褐土",
-      "陶片12件，坐标E3N4"
-    ],
-    [
-      "T0204",
-      "H12灰坑",
-      "黑褐土",
-      "夹炭屑，见动物骨"
-    ],
-    [
-      "T0301",
-      "F2房址",
-      "夯土面",
-      "柱洞关系需复核"
-    ]
-  ]
+  id: "hxwl-10",
+  port: 5110,
+  title: "考古探方记录",
+  subtitle: "班组每日进尺上报、遗迹保护停挖复挖与地层验收更正闭环档案",
 };
 
-const statusColors = ["status-ok", "status-watch", "status-danger"];
-
-function MetricCard({ label, value, index }: { label: string; value: string; index: number }) {
-  return (
-    <article className="metric-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <i className={statusColors[index % statusColors.length]} />
-    </article>
-  );
+interface ToastState {
+  kind: "ok" | "err";
+  text: string;
+  stamp: number;
 }
 
 function App() {
-  const values = project.metrics.map((metric: string, index: number) => {
-    const base = [84, 12, 31, 7][index % 4];
-    return String(base + index * 3);
-  });
+  const [state, setState] = useState<AppState>(() => loadState());
+  const [toast, setToast] = useState<ToastState | null>(null);
+
+  // 每次变更即落盘：刷新后探方、班组、停挖、交接和更正链保持一致
+  useEffect(() => {
+    saveState(state);
+  }, [state]);
+
+  function apply(result: Result, successMsg: string) {
+    if (result.ok) {
+      setState(result.state);
+      setToast({ kind: "ok", text: successMsg, stamp: Date.now() });
+    } else {
+      setToast({ kind: "err", text: result.issues.map((i) => i.message).join("；"), stamp: Date.now() });
+    }
+  }
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  function reset() {
+    setState(resetState());
+    setToast({ kind: "ok", text: "已恢复演示初始档案", stamp: Date.now() });
+  }
+
+  const metrics = useMemo(() => {
+    const halted = state.trenches.filter((t) => t.status === "halted").length;
+    const openFeatures = state.features.filter((f) => !f.protectionRegistered).length;
+    const checks = integrityChecks(state);
+    const badChecks = checks.filter((c) => !c.ok).length;
+    return [
+      { label: "探方数", value: String(state.trenches.length), tone: "ok" },
+      { label: "保护停挖", value: String(halted), tone: halted ? "danger" : "ok" },
+      { label: "进尺记录", value: String(state.reports.length), tone: "ok" },
+      { label: "未登记保护遗迹", value: String(openFeatures), tone: openFeatures ? "danger" : "watch" },
+      { label: "交接 / 更正", value: `${state.handovers.length} / ${state.corrections.length}`, tone: "watch" },
+      { label: "链路异常", value: String(badChecks), tone: badChecks ? "danger" : "ok" },
+    ];
+  }, [state]);
 
   return (
     <main className="app-shell">
+      {toast && (
+        <div className={`toast-wrap ${toast.kind}`} key={toast.stamp}>
+          {toast.kind === "ok" ? "✓ " : "⛔ "}
+          {toast.text}
+        </div>
+      )}
+
       <section className="hero">
         <div>
           <p className="eyebrow">{project.id} · port {project.port}</p>
@@ -88,72 +80,30 @@ function App() {
           <p className="subtitle">{project.subtitle}</p>
         </div>
         <div className="stack-card">
-          <span>技术栈</span>
-          <strong>{project.stack}</strong>
+          <span>闭环流程</span>
+          <strong>进尺上报 → 发现遗迹停挖 → 登记保护措施 →（换班组则交接）→ 复挖；验收地层只读、更正留痕</strong>
+          <button className="reset-btn" onClick={reset}>恢复演示数据</button>
         </div>
       </section>
 
-      <section className="metrics-grid">
-        {project.metrics.map((metric: string, index: number) => (
-          <MetricCard key={metric} label={metric} value={values[index]} index={index} />
+      <section className="metrics-grid metrics-grid-6">
+        {metrics.map((m) => (
+          <article className="metric-card" key={m.label}>
+            <span>{m.label}</span>
+            <strong>{m.value}</strong>
+            <i className={`status-${m.tone}`} />
+          </article>
         ))}
       </section>
 
-      <section className="workspace">
-        <aside className="panel narrow">
-          <h2>角色</h2>
-          <div className="chips">
-            {project.users.map((user: string) => (
-              <span key={user}>{user}</span>
-            ))}
-          </div>
-          <h2>筛选</h2>
-          <div className="chips muted">
-            {project.filters.map((filter: string) => (
-              <button key={filter}>{filter}</button>
-            ))}
-          </div>
-        </aside>
+      <Forms state={state} apply={apply} />
+      <TrenchBoard state={state} />
+      <Ledger state={state} />
 
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <p>{project.domain}</p>
-              <h2>记录字段</h2>
-            </div>
-            <button className="primary-action">新增记录</button>
-          </div>
-          <div className="field-grid">
-            {project.fields.map((field: string) => (
-              <label key={field}>
-                <span>{field}</span>
-                <input placeholder={"填写" + field} />
-              </label>
-            ))}
-          </div>
-        </section>
-      </section>
-
-      <section className="records panel">
-        <div className="section-heading">
-          <div>
-            <p>示例数据</p>
-            <h2>近期记录</h2>
-          </div>
-          <button>导出摘要</button>
-        </div>
-        <div className="record-list">
-          {project.records.map((record: string[], index: number) => (
-            <article key={record.join("-")} className="record-card">
-              <div className="record-index">{String(index + 1).padStart(2, "0")}</div>
-              <div>
-                <h3>{record[0]}</h3>
-                <p>{record.slice(1).join(" · ")}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <footer className="page-foot">
+        领域数据（src/domain）、校验规则（src/domain/rules.ts）与页面（src/components、App.tsx）分开实现 ·
+        数据保存在浏览器本地，刷新后一致 · 未新增任何依赖
+      </footer>
     </main>
   );
 }
